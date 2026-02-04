@@ -6,12 +6,12 @@ properties.load(project.rootProject.file('local.properties').newDataInputStream(
 def talking_sdk_key = properties.getProperty('talking_data_sdk_key')
 
 android {
-    compileSdkVersion 28
-    buildToolsVersion "26.0.3"
+    compileSdkVersion 29
+    buildToolsVersion "29.0.3"
 
     defaultConfig {
         minSdkVersion 21
-        targetSdkVersion 28
+        targetSdkVersion 30
         buildConfigField "String", "Talking_Sdk_Key", "${talking_sdk_key}"
     }
     buildTypes {

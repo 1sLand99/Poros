@@ -8,6 +8,15 @@
 
 
 namespace jni {
+    static bool CheckAndClearException(JNIEnv* env) {
+        if (env->ExceptionCheck()) {
+            env->ExceptionDescribe();
+            env->ExceptionClear();
+            return true;
+        }
+        return false;
+    }
+
     // call the object method
     static jobject
     CallObjectMethod(JNIEnv *env, jobject obj, const char *name, const char *sig, ...) {
@@ -240,28 +249,59 @@ namespace jni {
 
     bool MergeDexAndSoToClassLoader(JNIEnv *env, const char *dex_path, const char *so_dir) {
         LOGD("Start merge dex and so into the appClassLoader.");
-        ScopedLocalRef<jobject> classloader_obj(env, GetAppClassLoader(env));
-        if (!classloader_obj.get()) return false;
+        ScopedLocalRef<jobject> app_class_loader(env, GetAppClassLoader(env));
+        if (CheckAndClearException(env) || !app_class_loader.get()) {
+            LOGE("Failed to get app classloader!");
+            return false;
+        }
+
+        ScopedLocalRef<jobject> classloader_obj(env, env->NewLocalRef(app_class_loader.get()));
+        if (CheckAndClearException(env) || !classloader_obj.get()) {
+            LOGE("Failed to create local ref for app classloader!");
+            return false;
+        }
 
         ScopedLocalRef<jclass> pathclassloader_clazz(env, env->FindClass(
                 "dalvik/system/PathClassLoader"));
+        if (CheckAndClearException(env) || !pathclassloader_clazz.get()) {
+             LOGE("Failed to find PathClassLoader class!");
+             return false;
+        }
 
         ScopedLocalRef<jclass> classloader_clazz(env, env->FindClass("java/lang/ClassLoader"));
+        if (CheckAndClearException(env) || !classloader_clazz.get()) {
+            LOGE("Failed to find ClassLoader class!");
+            return false;
+        }
         jmethodID getParent_mid = env->GetMethodID(classloader_clazz.get(), "getParent",
                                                    "()Ljava/lang/ClassLoader;");
+        if (CheckAndClearException(env) || !getParent_mid) {
+            LOGE("Failed to get getParent method id!");
+            return false;
+        }
 
         // Some app's plugin framework may change the app classloader, so try to find the real PathClassLoader
         while (classloader_obj.get() != nullptr) {
-            ScopedLocalRef<jclass> clazz(env, env->GetObjectClass(classloader_obj.get()));
-
-            if (!env->IsSameObject(clazz.get(), pathclassloader_clazz.get())) {
+            if (!env->IsInstanceOf(classloader_obj.get(), pathclassloader_clazz.get())) {
                 // get the parent of the classloader
                 classloader_obj.reset(env->CallObjectMethod(classloader_obj.get(), getParent_mid));
+                if (CheckAndClearException(env)) {
+                    LOGE("Exception occurred when calling getParent!");
+                    break;
+                }
             } else {
+                LOGD("Found PathClassLoader: %p", classloader_obj.get());
                 break;
             }
         }
-        if (!classloader_obj.get()) return false;
+        if (!classloader_obj.get()) {
+             LOGE("Failed to find PathClassLoader in hierarchy, fallback to original app classloader.");
+             classloader_obj.reset(env->NewLocalRef(app_class_loader.get()));
+        }
+        if (CheckAndClearException(env) || !classloader_obj.get()) {
+            LOGE("Final check failed: classloader_obj is null!");
+            return false;
+        }
 
         jfieldID pathList_fid = GetObjectFieldId(env, classloader_obj.get(), "pathList",
                                                  "Ldalvik/system/DexPathList;");

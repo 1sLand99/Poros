@@ -7,7 +7,7 @@ def flavorsDebugMergeDexList = ["mergeDexRelease"]
 def flavorsNameList = ["sandhook"]
 
 android {
-    compileSdkVersion 28
+    compileSdkVersion 29
     defaultConfig {
         applicationId "com.storm.wind.xposed"
         minSdkVersion 21

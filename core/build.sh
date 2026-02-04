@@ -1,7 +1,7 @@
 #!/bin/bash
 echo "use cmake to build project"
 
-# ANDROID_NDK_HOME="${HOME}/Library/Android/sdk/ndk/22.0.7026061"
+# ANDROID_NDK_HOME="${HOME}/Library/Android/sdk/ndk/29.0.14206865"
 cur_dir=$(cd `dirname $0`; pwd)
 
 echo "cur_dir : $cur_dir"
